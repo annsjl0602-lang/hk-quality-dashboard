@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>品質平台／看板盤點整合追蹤進度表</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.2s ease-in-out;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl font-bold text-white tracking-wide">品質平台／看板盤點整合追蹤進度表</h1>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">跨單位品質數據賦能、系統重疊評估與歷程管制總覽</p>
+                    </div>
+                </div>
+
+                <!-- Top Right Quick Actions -->
+                <div class="flex items-center space-x-2">
+                    <button id="cloudSyncBtn" onclick="openGsheetModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-2 rounded-lg transition flex items-center gap-1.5" title="點擊設定 Google Sheet 雲端同步">
+                        <span id="cloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                        <span id="cloudSyncText" class="hidden sm:inline text-xs">本地模式</span>
+                    </button>
+                    <button onclick="openModal('editModal')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 新增平台項目
+                    </button>
+                    <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv text-emerald-400"></i> 匯出 CSV
+                    </button>
+                    <button onclick="refreshData(event)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5" title="資料更新與重新整理">
+                        <i class="fa-solid fa-rotate text-sky-400"></i> 資料更新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+
+        <!-- KPI Metrics Grid -->
+        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="glass-panel p-4 rounded-xl relative overflow-hidden">
+                <div class="text-xs font-medium text-slate-400">總平台/看板數</div>
+                <div class="text-2xl font-bold text-white mt-1" id="kpi-total">0</div>
+                <div class="absolute right-3 bottom-3 text-slate-700 text-3xl"><i class="fa-solid fa-layer-group"></i></div>
+            </div>
+            <div class="glass-panel p-4 rounded-xl relative overflow-hidden border-l-4 border-l-emerald-500">
+                <div class="text-xs font-medium text-slate-400">已上線 (Online)</div>
+                <div class="text-2xl font-bold text-emerald-400 mt-1" id="kpi-online">0</div>
+                <div class="absolute right-3 bottom-3 text-emerald-950/40 text-3xl"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+            <div class="glass-panel p-4 rounded-xl relative overflow-hidden border-l-4 border-l-indigo-500">
+                <div class="text-xs font-medium text-slate-400">開發中 (In Dev)</div>
+                <div class="text-2xl font-bold text-indigo-400 mt-1" id="kpi-dev">0</div>
+                <div class="absolute right-3 bottom-3 text-indigo-950/40 text-3xl"><i class="fa-solid fa-code"></i></div>
+            </div>
+            <div class="glass-panel p-4 rounded-xl relative overflow-hidden border-l-4 border-l-rose-500">
+                <div class="text-xs font-medium text-slate-400">存在卡關/需協助</div>
+                <div class="text-2xl font-bold text-rose-400 mt-1" id="kpi-blocked">0</div>
+                <div class="absolute right-3 bottom-3 text-rose-950/40 text-3xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="glass-panel p-4 rounded-xl relative overflow-hidden border-l-4 border-l-purple-500">
+                <div class="text-xs font-medium text-slate-400">建議整併 / 共用</div>
+                <div class="text-2xl font-bold text-purple-400 mt-1" id="kpi-shared">0</div>
+                <div class="absolute right-3 bottom-3 text-purple-950/40 text-3xl"><i class="fa-solid fa-object-group"></i></div>
+            </div>
+        </section>
+
+        <!-- Controls & Filter Toolbar -->
+        <section class="glass-panel p-4 rounded-xl space-y-3">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <!-- Search Box -->
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="搜尋平台名稱、主要功能、負責窗口..." 
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
+                </div>
+
+                <!-- Dropdown Filters Group -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Status Filter -->
+                    <select id="filterStatus" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部進度狀態</option>
+                        <option value="已上線">已上線</option>
+                        <option value="開發中">開發中</option>
+                    </select>
+
+                    <!-- Disposition Recommendation Filter -->
+                    <select id="filterRec" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部處置建議</option>
+                        <option value="繼續開發">繼續開發</option>
+                        <option value="跨單位共用">跨單位共用</option>
+                        <option value="系統整併">系統整併</option>
+                        <option value="暫緩開發">暫緩開發</option>
+                    </select>
+
+                    <!-- Department Filter -->
+                    <select id="filterDept" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部使用單位</option>
+                        <option value="品保處">品保處</option>
+                        <option value="製造部">製造部</option>
+                        <option value="生管部">生管部</option>
+                        <option value="工程部">工程部</option>
+                        <option value="研發部">研發部</option>
+                        <option value="採購部">採購部</option>
+                    </select>
+
+                    <!-- View Switcher Tabs -->
+                    <div class="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800 ml-auto lg:ml-0">
+                        <button id="viewBtnTable" onclick="switchView('table')" class="px-3 py-1.5 text-xs rounded-md font-medium text-white bg-blue-600 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-table-list"></i> 追蹤表格
+                        </button>
+                        <button id="viewBtnKanban" onclick="switchView('kanban')" class="px-3 py-1.5 text-xs rounded-md font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-columns"></i> 看板視圖
+                        </button>
+                        <button id="viewBtnAnalytics" onclick="switchView('analytics')" class="px-3 py-1.5 text-xs rounded-md font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-pie"></i> 統計分析
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 1: TABLE VIEW -->
+        <section id="tableView" class="glass-panel rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300 border-collapse">
+                    <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="py-3.5 px-4">平台／看板名稱(附上廠區代碼HK or VN)</th>
+                            <th class="py-3.5 px-4">使用單位 & 負責窗口</th>
+                            <th class="py-3.5 px-4">核心功能 & 資料來源</th>
+                            <th class="py-3.5 px-4">進度 / 預計完成</th>
+                            <th class="py-3.5 px-4">處置建議 & 重疊評估</th>
+                            <th class="py-3.5 px-4">卡關瓶頸 / 協助</th>
+                            <th class="py-3.5 px-4">下次 Review 目標</th>
+                            <th class="py-3.5 px-4 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-800/60">
+                        <!-- Dynamic rows populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="tableEmptyState" class="hidden py-12 text-center text-slate-500">
+                <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-600"></i>
+                <p class="text-sm">未找到符合條件的平台項目</p>
+            </div>
+        </section>
+
+        <!-- VIEW 2: KANBAN BOARD VIEW -->
+        <section id="kanbanView" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Column 1: 已上線 -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col h-full">
+                <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 font-bold text-slate-200 text-sm">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        已上線 (Online)
+                    </div>
+                    <span id="count-kanban-online" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                </div>
+                <div id="kanbanContainerOnline" class="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1">
+                    <!-- Kanban Cards -->
+                </div>
+            </div>
+
+            <!-- Column 2: 開發中 -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col h-full">
+                <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 font-bold text-slate-200 text-sm">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        開發中 (In Progress)
+                    </div>
+                    <span id="count-kanban-dev" class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                </div>
+                <div id="kanbanContainerDev" class="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1">
+                    <!-- Kanban Cards -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: ANALYTICS VIEW -->
+        <section id="analyticsView" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Disposition Bar Breakdown -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-code-merge text-purple-400"></i> 處置建議分布 (Disposition Breakdown)
+                    </h3>
+                    <div id="analyticsRecChart" class="space-y-3">
+                        <!-- Generated dynamic bars -->
+                    </div>
+                </div>
+
+                <!-- Department Breakdown -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap text-blue-400"></i> 使用單位盤點占比
+                    </h3>
+                    <div id="analyticsDeptChart" class="space-y-3">
+                        <!-- Generated dynamic bars -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blocker Overview Panel -->
+            <div class="glass-panel p-5 rounded-xl space-y-3 border-l-4 border-l-rose-500">
+                <h3 class="font-bold text-sm text-rose-400 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> 當前卡關與跨部門待支援清單
+                </h3>
+                <div id="analyticsBlockerList" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    <!-- Dynamic Blocker Items -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL 1: Platform Detail View Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <div class="flex items-center gap-3">
+                    <span id="modalStatusBadge" class="px-2.5 py-1 rounded-md text-xs font-bold"></span>
+                    <h2 id="modalTitle" class="text-lg font-bold text-white">平台名稱</h2>
+                </div>
+                <button onclick="closeModal('detailModal')" class="text-slate-400 hover:text-white transition text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
+                <!-- Section 1: Basic Info Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
+                    <div>
+                        <div class="text-slate-500 text-[11px]">使用單位</div>
+                        <div id="modalDept" class="font-semibold text-slate-200 text-sm mt-0.5">--</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-[11px]">負責窗口</div>
+                        <div id="modalOwner" class="font-medium text-slate-200 mt-0.5">--</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-[11px]">品質配合窗口</div>
+                        <div id="modalQaPartner" class="font-medium text-slate-200 mt-0.5">--</div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Core Functions & Data Sources -->
+                <div class="space-y-3">
+                    <div>
+                        <div class="text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cubes text-blue-400"></i> 主要功能與使用目的
+                        </div>
+                        <div id="modalFunction" class="bg-slate-950/30 p-3 rounded-lg border border-slate-800 text-slate-300 leading-relaxed">--</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-database text-teal-400"></i> 資料來源 (Sources)
+                            </div>
+                            <div id="modalDataSources" class="bg-slate-950/30 p-3 rounded-lg border border-slate-800 text-slate-300">--</div>
+                        </div>
+                        <div>
+                            <div class="text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-calendar-check text-indigo-400"></i> 預計完成日期 & 進度
+                            </div>
+                            <div class="bg-slate-950/30 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                                <span id="modalTargetDate" class="font-mono text-slate-200">--</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-24 bg-slate-800 rounded-full h-2">
+                                        <div id="modalProgressBar" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                    <span id="modalProgressText" class="font-bold text-blue-400">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Overlap Assessment & Recommendation -->
+                <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrows-split-up-and-left text-purple-400"></i> 重疊/重複功能評估
+                        </span>
+                        <span id="modalRecBadge" class="px-2.5 py-0.5 rounded text-[11px] font-bold"></span>
+                    </div>
+                    <p id="modalOverlapEval" class="text-slate-300 leading-relaxed">--</p>
+                </div>
+
+                <!-- Section 4: Blockers & Required Assistance -->
+                <div id="modalBlockerContainer" class="p-4 rounded-xl border border-rose-900/40 bg-rose-950/20 space-y-2">
+                    <div class="text-rose-400 font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> 目前卡關瓶頸與所需協助
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-300 pt-1">
+                        <div>
+                            <span class="text-slate-500 text-[11px] block">卡關狀況:</span>
+                            <span id="modalBlocker" class="text-rose-200 font-medium">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 text-[11px] block">需要誰協助:</span>
+                            <span id="modalAssistance" class="text-amber-200 font-medium">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Next Review Milestone -->
+                <div class="bg-indigo-950/20 border border-indigo-900/40 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                        <div class="text-indigo-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-flag-checkered text-indigo-400"></i> 下次 Review 前待完成事項
+                        </div>
+                        <p id="modalNextGoal" class="text-slate-300 mt-1">--</p>
+                    </div>
+                    <div class="whitespace-nowrap">
+                        <span class="text-slate-500 text-[11px] block">責任負責人</span>
+                        <span id="modalNextOwner" class="font-bold text-indigo-300">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/90 flex justify-end gap-2">
+                <button onclick="closeModal('detailModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium px-4 py-2 rounded-lg text-xs transition">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Add / Edit Item Modal -->
+    <div id="editModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <h2 id="editModalTitle" class="text-base font-bold text-white">新增 / 編輯品質平台看板</h2>
+                <button onclick="closeModal('editModal')" class="text-slate-400 hover:text-white transition text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="itemForm" onsubmit="saveItem(event)" class="p-6 overflow-y-auto space-y-4 text-xs">
+                <input type="hidden" id="formId">
+
+                <!-- Row 1: Name & Status -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="md:col-span-2">
+                        <label class="block text-slate-400 mb-1 font-medium">平台／看板名稱(附上廠區代碼HK or VN) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formName" required placeholder="例：HK-IQC 進料檢驗即時看板" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">開發進度狀態 <span class="text-rose-500">*</span></label>
+                        <select id="formStatus" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="已上線">已上線</option>
+                            <option value="開發中">開發中</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 2: Department & Contacts -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">使用單位 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formDept" required placeholder="例：品保處" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">負責窗口 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formOwner" required placeholder="姓名與職稱" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">品質配合窗口</label>
+                        <input type="text" id="formQaPartner" placeholder="品保負責人" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Row 3: Functions & Purpose -->
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">主要功能與使用目的</label>
+                    <textarea id="formFunction" rows="2" placeholder="詳細描述核心功能、警報機制與管制作業目的..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- Row 4: Data Sources & Progress % & Target Date -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">資料來源</label>
+                        <input type="text" id="formDataSources" placeholder="例：MES, ERP, SPC, 檢測儀器" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">目前進度 (%)</label>
+                        <input type="number" id="formProgress" min="0" max="100" placeholder="0 - 100" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">預計完成時間</label>
+                        <input type="date" id="formTargetDate" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Row 5: Disposition Recommendation & Overlap Eval -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">處置建議 <span class="text-rose-500">*</span></label>
+                        <select id="formRecommendation" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                            <option value="繼續開發">繼續開發</option>
+                            <option value="跨單位共用">跨單位共用</option>
+                            <option value="系統整併">系統整併</option>
+                            <option value="暫緩開發">暫緩開發</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-slate-400 mb-1 font-medium">重疊/重複功能評估說明</label>
+                        <input type="text" id="formOverlapEval" placeholder="描述與其他系統重疊之處及整併建議..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Row 6: Blockers & Assistance -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-950/40 p-3 rounded-lg border border-slate-800">
+                    <div>
+                        <label class="block text-rose-400 mb-1 font-medium">目前卡關瓶頸 (若無填無)</label>
+                        <input type="text" id="formBlocker" placeholder="例如: API未開放, 預算不足" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-amber-400 mb-1 font-medium">需要誰協助 / 支援單位</label>
+                        <input type="text" id="formAssistance" placeholder="例如: 資訊處 IT, 品保經理" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Row 7: Next Review Plan -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-indigo-950/20 p-3 rounded-lg border border-indigo-900/30">
+                    <div class="md:col-span-2">
+                        <label class="block text-indigo-300 mb-1 font-medium">下次 Review 前待完成事項</label>
+                        <input type="text" id="formNextGoal" placeholder="下次對齊會議前需交付之里程碑..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-indigo-300 mb-1 font-medium">事項負責人</label>
+                        <input type="text" id="formNextOwner" placeholder="責任人" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('editModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-medium transition">
+                        取消
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg font-semibold shadow-lg shadow-blue-600/30 transition">
+                        儲存資料
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Google Sheet API Config Modal -->
+    <div id="gsheetModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-table text-emerald-400"></i> Google Sheet 雲端資料庫設定
+                </h2>
+                <button onclick="closeModal('gsheetModal')" class="text-slate-400 hover:text-white transition text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 text-xs text-slate-300">
+                <p class="text-slate-400 leading-relaxed">
+                    請貼入 Google Apps Script 部署發布的 Web 應用程式網址 (Web App URL)。設定後，新增/修改資料將即時與 Google 試算表同步。
+                </p>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">Google Apps Script Web App URL</label>
+                    <input type="url" id="gsheetUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-xs">
+                </div>
+                <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800/80 space-y-1.5 text-[11px] text-slate-400">
+                    <div class="font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                        <i class="fa-solid fa-lightbulb text-amber-400"></i> 如何取得 API 網址？
+                    </div>
+                    <div>1. 開啟專案資料夾內的 <code class="text-sky-300 bg-slate-900 px-1 py-0.5 rounded">google_apps_script.js</code> 並複製全數程式碼。</div>
+                    <div>2. 開啟 Google 試算表 ➔ 點「擴充功能」➔「Apps Script」貼上程式碼並儲存。</div>
+                    <div>3. 點右上「部署」➔「新增部署」➔ 種類選「Web 應用程式」，存取權限選「所有人(Anyone)」。</div>
+                    <div>4. 複製獲得的 Web App URL 並貼於上方點擊儲存連線！</div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <button onclick="clearGsheetUrl()" class="text-rose-400 hover:text-rose-300 transition text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> 清空連線 (使用本地)
+                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeModal('gsheetModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition text-xs font-medium">取消</button>
+                    <button onclick="saveGsheetUrl()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition text-xs font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-plug"></i> 儲存並同步
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'hk_quality_platforms_data_v2';
+
+        // Initial realistic mock data for HK Plant
+        const INITIAL_PLATFORMS = [
+            {
+                id: 'HK-001',
+                name: 'HK-IQC 進料檢驗即時監控看板',
+                dept: '品保處',
+                owner: '張偉倫 (IQC工程師)',
+                qaPartner: '李淑芬 (IQC課長)',
+                function: '自動接收 WMS 進料通知，展演抽樣方案、不良率 Trend 分析與驗退退貨單連動警報。',
+                purpose: '掌握原材料與零件進料品質，降低異常入庫風險，實現即時檢驗判退。',
+                dataSources: 'ERP (進料單), WMS (待驗庫存), IQC 檢測儀器',
+                status: '已上線',
+                progress: 100,
+                targetDate: '2026-08-30',
+                overlapEval: '與 WMS 待驗區報表部分欄位重複，建議統一以本看板為品質判定單一水源。',
+                recommendation: '繼續開發',
+                blocker: '無卡關，系統穩定運行',
+                assistance: '無需協助',
+                nextGoal: '擴充免檢 (Skip-lot) 自動化 logic 與規則審查機制',
+                nextOwner: '張偉倫'
+            },
+            {
+                id: 'HK-002',
+                name: 'HK-IPQC 巡檢與 SPC 製程超規警報平台',
+                dept: '製造部',
+                owner: '林浩然 (SPC工程師)',
+                qaPartner: '陳美玲 (IPQC課長)',
+                function: '首中末件檢查、SPC 管制圖 (Xbar-R/Cpk) 即時繪製與 Out-of-Control (OOC) 自動派單。',
+                purpose: '預防製造過程品質漂移，即時扣留可疑批次 (Hold Lot)，防止不良批量發生。',
+                dataSources: 'MES (工單數據), 機台 PLC, 巡檢手持 PDA',
+                status: '開發中',
+                progress: 65,
+                targetDate: '2026-10-15',
+                overlapEval: '與 MES 系統內建之簡易 SPC 模組重疊 70%，建議將 MES 數據導出，由本平台統一做深度分析。',
+                recommendation: '系統整併',
+                blocker: 'MES 團隊對機台 PLC 參數 API 接口開放延遲，且協定格式不一',
+                assistance: '需要資訊處 (IT) 協助開發通用 API 轉譯層',
+                nextGoal: '完成 SMT 1-3 線 MES API 連線測試驗證',
+                nextOwner: '林浩然 / IT 黃主任'
+            },
+            {
+                id: 'HK-003',
+                name: 'HK-OQC 出貨品質與驗貨履歷系統',
+                dept: '品保處',
+                owner: '王建國 (OQC主管)',
+                qaPartner: '許雅婷 (品質主管)',
+                function: '自動生成 OQC 抽測報告、出貨 COA 簽核、棧板裝箱履歷對照與客戶規範 (COC) 自動比對。',
+                purpose: '確保零缺陷出貨，滿足 Apple/Dell 等國際客戶的產品溯源管制。',
+                dataSources: 'MES (包裝完工), ERP (出貨單), 測試 Log',
+                status: '已上線',
+                progress: 95,
+                targetDate: '2026-09-30',
+                overlapEval: '生管與業務部門亦需查閱 COA 證書，本平台資料可直接開放權限供全廠共享。',
+                recommendation: '跨單位共用',
+                blocker: '客戶端系統 API 安全憑證變更，造成自動對接暫時中斷',
+                assistance: '需要資安小組 (InfoSec) 協助更新 SSL 加密簽核',
+                nextGoal: '完成新版憑證部署與自動化上傳簽核',
+                nextOwner: '王建國'
+            },
+            {
+                id: 'HK-004',
+                name: 'HK-8D / RMA 客訴異常改善追蹤看板',
+                dept: '品保處',
+                owner: '黃志明 (CQE課長)',
+                qaPartner: '周宗翰 (CQE經理)',
+                function: '客訴履歷登錄、8D 報告 24h/7d 時效追蹤、跨部門 CAPA 矯正對策審核會簽。',
+                purpose: '加速客訴處理時效，確保真因根本改善與廠內橫向展開閉環。',
+                dataSources: 'CRM 系統, PLM 系統, 手動 8D 欄位',
+                status: '開發中',
+                progress: 45,
+                targetDate: '2026-11-15',
+                overlapEval: '無重複系統，為 HK 廠目前唯一標準化客訴與 RCA 管理中樞。',
+                recommendation: '繼續開發',
+                blocker: '研發與工程部對於 CAPA 對策簽核責任有分歧，會簽時程停滯',
+                assistance: '需要品保處協理召開跨部門權責決策會議',
+                nextGoal: '確立跨部門 8D 簽核權責矩陣 (RACI)',
+                nextOwner: '周宗翰 (品保經理)'
+            },
+            {
+                id: 'HK-005',
+                name: 'HK-SQM 供應商品質評估與交期儀表板',
+                dept: '採購部',
+                owner: '陳家豪 (SQE工程師)',
+                qaPartner: '鄭秀英 (採購主管)',
+                function: '供應商月度 PPM/交期評分、QBR 評鑑等級計算、稽核缺點 (Audit Deficiency) 改善追蹤。',
+                purpose: '建立供應商動態評鑑與汰換機制，從源頭提升原材料品質。',
+                dataSources: 'ERP (扣款單), IQC 檢測數據, 現場評鑑表',
+                status: '開發中',
+                progress: 15,
+                targetDate: '2027-02-28',
+                overlapEval: '集團總部 Headquarters 正在開發現代化 SQM 雲端平台，本地規劃與集團高度重複。',
+                recommendation: '暫緩開發',
+                blocker: '等待集團 HQ 評估報告，避免重複開發投入資源',
+                assistance: '需要集團品質委員會提供集團版 SQM 上線時間表',
+                nextGoal: '參加集團 SQM 平台規劃會議，評估是否直接套用集團版',
+                nextOwner: '陳家豪'
+            },
+            {
+                id: 'HK-006',
+                name: 'HK-FAI 首件檢查自動化比對平台',
+                dept: '工程部',
+                owner: '劉德華 (工程副理)',
+                qaPartner: '蔡佳穎 (NPI品保)',
+                function: '自動解析 CAD/BOM 圖層，與 LCR Meter / 測量儀器對比，自動生成 FAI 報告。',
+                purpose: '防止換線人工對件錯誤，將換線首件檢測時間從 45 分鐘縮短至 10 分鐘。',
+                dataSources: 'PLM (Gerber/BOM), LCR 測量儀器',
+                status: '開發中',
+                progress: 50,
+                targetDate: '2026-10-31',
+                overlapEval: '工程部 NPI 首件與 IPQC 換線首件重複判定，建議整合兩者流程於同一平台。',
+                recommendation: '繼續開發',
+                blocker: '第三方 CAD 檔案解析模組授權費用過高，且複雜圖層精確度不足',
+                assistance: '需要工程部主管決策自研輕量化解析模組或申請專案追加預算',
+                nextGoal: '完成自研 BOM-LCR 數據對比 MVP 模組測試',
+                nextOwner: '劉德華'
+            },
+            {
+                id: 'HK-007',
+                name: 'HK-CPK 製程能力即時監控與良率水準看板',
+                dept: '生管部',
+                owner: '郭復興 (生管經理)',
+                qaPartner: '林浩然 (SPC工程師)',
+                function: '即時呈現各產線 Yield、Cpk 趨勢預警、站別 Pareto 瓶頸分析與早會戰報匯出。',
+                purpose: '讓高層與戰情室即時掌控全廠產線健康度，落實品質預警管理。',
+                dataSources: 'MES (過站履歷), SPC 資料庫',
+                status: '已上線',
+                progress: 100,
+                targetDate: '2026-07-15',
+                overlapEval: '與製造部總戰情看板有部分圖表重疊，可直接將本模組以模組化 Widget 嵌回戰情室。',
+                recommendation: '跨單位共用',
+                blocker: '無卡關，維護良好',
+                assistance: '無需協助',
+                nextGoal: '新增移動端 Teams/Line 每日自動推播訂閱',
+                nextOwner: '郭復興'
+            },
+            {
+                id: 'HK-008',
+                name: 'HK-LIMS 實驗室檢測與可靠度測試平台',
+                dept: '研發部',
+                owner: '吳建豪 (實驗室主任)',
+                qaPartner: '趙麗蓮 (QE課長)',
+                function: '測試樣品派單、高低溫/鹽霧/震動試驗排程、實驗數據 Log 存檔與無紙化證書發行。',
+                purpose: '規範實驗室管制流程，確保實驗數據防篡改與可追溯性。',
+                dataSources: '實驗室設備 Log, 人工審核',
+                status: '開發中',
+                progress: 20,
+                targetDate: '2027-01-15',
+                overlapEval: '品保處與研發部各有獨立實驗室需求，建議建立整合型 LIMS 平台供兩單位共同使用。',
+                recommendation: '系統整併',
+                blocker: '品保與研發實驗室規範標準與測試欄位不一致，需求尚未收斂',
+                assistance: '需要研發主管與品保主管共同主持需求範疇對齊會議',
+                nextGoal: '完成品保與研發實驗室欄位差異分析比對表',
+                nextOwner: '吳建豪'
+            }
+        ];
+
+        // App State
+        let platformData = [];
+        let filteredData = [];
+        let currentView = 'table'; // 'table' | 'kanban' | 'analytics'
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            // Polling auto refresh every 15 seconds to sync data across external users
+            setInterval(() => {
+                loadData(true);
+            }, 15000);
+        });
+
+        function fetchJsonp(url) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'hk_gsheet_cb_' + Math.floor(Math.random() * 1000000);
+                
+                let timeoutId = setTimeout(() => {
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error('JSONP 連線超時'));
+                }, 10000);
+
+                window[callbackName] = function(data) {
+                    clearTimeout(timeoutId);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    resolve(data);
+                };
+
+                const script = document.createElement('script');
+                const sep = url.includes('?') ? '&' : '?';
+                script.src = `${url}${sep}prefix=${callbackName}`;
+                script.onerror = function() {
+                    clearTimeout(timeoutId);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error('JSONP Script 載入失敗'));
+                };
+
+                document.body.appendChild(script);
+            });
+        }
+
+        async function loadData(silent = false) {
+            if (!silent) updateSyncBadge('loading', '同步連線中...');
+
+            // 1. Check Google Sheet Web App URL if configured
+            let gUrl = (localStorage.getItem('hk_quality_gsheet_url') || '').trim();
+            if (gUrl) {
+                // Auto strip company domain prefix /a/macros/domain/ to bypass SSO login redirect
+                if (gUrl.includes('/a/macros/')) {
+                    gUrl = gUrl.replace(/\/a\/macros\/[^\/]+\//, '/');
+                    localStorage.setItem('hk_quality_gsheet_url', gUrl);
+                }
+                if (gUrl.endsWith('/dev')) {
+                    gUrl = gUrl.replace(/\/dev$/, '/exec');
+                    localStorage.setItem('hk_quality_gsheet_url', gUrl);
+                }
+
+                // Try standard fetch first (works 100% on http/https protocol & tunnels)
+                try {
+                    let fetchUrl = gUrl.includes('?') ? gUrl : gUrl + '?action=getData';
+                    const res = await fetch(fetchUrl, { redirect: 'follow' });
+                    const text = await res.text();
+                    
+                    if (!text.trim().startsWith('<')) {
+                        const data = JSON.parse(text);
+                        if (Array.isArray(data)) {
+                            platformData = data;
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
+                            updateSyncBadge('online', 'Google Sheet 雲端連線');
+                            applyFilters();
+                            return;
+                        }
+                    }
+                } catch(fetchErr) {
+                    console.warn('Standard fetch failed, trying JSONP:', fetchErr);
+                }
+
+                // Fallback to JSONP script injection
+                try {
+                    const data = await fetchJsonp(gUrl);
+                    if (Array.isArray(data)) {
+                        platformData = data;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
+                        updateSyncBadge('online', 'Google Sheet 雲端連線');
+                        applyFilters();
+                        return;
+                    }
+                } catch(jsonpErr) {
+                    console.warn('JSONP fetch also failed:', jsonpErr);
+                }
+
+                updateSyncBadge('error', 'Google 權限待設定');
+                if (!silent) {
+                    alert('⚠️ Google 試算表連線失敗 (Google 伺服器要求登入)！\n\n這代表 Apps Script 部署設定中的『誰有存取權限』尚未開為『所有人』，或者修改後未選擇『新建版本』！\n\n【簡單修正 2 步驟】：\n1. 至 Apps Script 點右上「部署」➔「管理部署」➔ 點鉛筆圖示 ✏️ 編輯。\n2. 將「誰有存取權限」改選為「所有人 (Anyone)」，且版本務必切換選「新建版本 (New version)」，最後點擊「部署」！');
+                }
+            }
+
+            // 2. Check Node Server API (/api/data)
+            try {
+                const res = await fetch('/api/data', { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        platformData = data;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
+                        updateSyncBadge('online', '外網/伺服器連線');
+                        applyFilters();
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.warn('Server API fetch failed, falling back to local storage:', e);
+            }
+
+            // 3. Fallback to LocalStorage or INITIAL_PLATFORMS
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    platformData = JSON.parse(stored);
+                    platformData.forEach(item => {
+                        if (item.status === '規劃中') item.status = '開發中';
+                    });
+                } catch(e) {
+                    console.error('Failed to parse localStorage data:', e);
+                    platformData = [...INITIAL_PLATFORMS];
+                }
+            } else {
+                platformData = [...INITIAL_PLATFORMS];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
+            }
+            updateSyncBadge('offline', '本機離線模式');
+            applyFilters();
+        }
+
+        async function saveAllData() {
+            // LocalStorage sync
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
+
+            // Google Sheet sync if set
+            const gUrl = localStorage.getItem('hk_quality_gsheet_url');
+            if (gUrl) {
+                updateSyncBadge('loading', '儲存至 Google Sheet...');
+                try {
+                    await fetch(gUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(platformData)
+                    });
+                    updateSyncBadge('online', 'Google Sheet 雲端連線');
+                    showToast('已成功同步資料至 Google 試算表！');
+                    return;
+                } catch(e) {
+                    console.error('Failed to sync to Google Sheet:', e);
+                }
+            }
+
+            // Node Server API sync
+            updateSyncBadge('loading', '儲存至外網伺服器...');
+            try {
+                const res = await fetch('/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(platformData)
+                });
+                if (res.ok) {
+                    updateSyncBadge('online', '外網/伺服器連線');
+                    showToast('資料已成功更新並儲存至伺服器 (外網同步完成)！');
+                } else {
+                    updateSyncBadge('offline', '已存本機 (伺服器錯誤)');
+                    showToast('已儲存至本機快取 (伺服器回應異常)');
+                }
+            } catch(e) {
+                console.warn('Server API POST error:', e);
+                updateSyncBadge('offline', '已存本機 (網路離線)');
+                showToast('網路連線失敗，已儲存至本機快取');
+            }
+        }
+
+        function saveToLocalStorage() {
+            saveAllData();
+        }
+
+        async function refreshData(e) {
+            const btnIcon = e?.currentTarget?.querySelector('i') || e?.target?.querySelector('i');
+            if (btnIcon) btnIcon.classList.add('fa-spin');
+            
+            await loadData();
+            
+            if (btnIcon) setTimeout(() => btnIcon.classList.remove('fa-spin'), 600);
+        }
+
+        function updateSyncBadge(status, text) {
+            const dot = document.getElementById('cloudSyncDot');
+            const label = document.getElementById('cloudSyncText');
+            if (!dot || !label) return;
+
+            if (status === 'online') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+                label.textContent = text || '雲端連線';
+            } else if (status === 'loading') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+                label.textContent = text || '同步中...';
+            } else if (status === 'error') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                label.textContent = text || '連線失敗';
+            } else {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+                label.textContent = text || '本機模式';
+            }
+        }
+
+        function showToast(msg) {
+            let toast = document.getElementById('syncToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'syncToast';
+                toast.className = 'fixed bottom-5 right-5 bg-slate-800 text-slate-100 border border-slate-700 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-xs flex items-center gap-2 transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i> <span>${msg}</span>`;
+            toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function openGsheetModal() {
+            const url = localStorage.getItem('hk_quality_gsheet_url') || '';
+            document.getElementById('gsheetUrlInput').value = url;
+            openModal('gsheetModal');
+        }
+
+        async function saveGsheetUrl() {
+            let url = document.getElementById('gsheetUrlInput').value.trim();
+            if (!url) {
+                localStorage.removeItem('hk_quality_gsheet_url');
+                closeModal('gsheetModal');
+                showToast('已清空 Google Sheet 連線');
+                loadData();
+                return;
+            }
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('⚠️ 請輸入有效的網址 (需包含 https://)');
+                return;
+            }
+
+            if (url.includes('/a/macros/')) {
+                url = url.replace(/\/a\/macros\/[^\/]+\//, '/');
+            }
+
+            if (url.endsWith('/dev')) {
+                url = url.replace(/\/dev$/, '/exec');
+                alert('⚠️ 偵測到您貼入的是「測試部署網址 (/dev)」！\n\n測試部署網址不允許外部 API 調用。系統已自動嘗試將其轉換為正式網址 (/exec)。\n\n請確保您在 Apps Script 點擊的是『新增部署』而非『測試部署』！');
+            }
+
+            localStorage.setItem('hk_quality_gsheet_url', url);
+            closeModal('gsheetModal');
+            showToast('正在測試並讀取 Google 試算表...');
+            await loadData(false);
+        }
+
+        function clearGsheetUrl() {
+            localStorage.removeItem('hk_quality_gsheet_url');
+            document.getElementById('gsheetUrlInput').value = '';
+            closeModal('gsheetModal');
+            showToast('已清空 Google Sheet 連線');
+            loadData();
+        }
+
+
+        function applyFilters() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const statusFilter = document.getElementById('filterStatus').value;
+            const recFilter = document.getElementById('filterRec').value;
+            const deptFilter = document.getElementById('filterDept').value;
+
+            filteredData = platformData.filter(item => {
+                // Keyword Search
+                const matchQuery = !query || 
+                    item.name.toLowerCase().includes(query) ||
+                    item.function.toLowerCase().includes(query) ||
+                    item.owner.toLowerCase().includes(query) ||
+                    item.dept.toLowerCase().includes(query);
+
+                // Status Filter
+                const matchStatus = (statusFilter === 'ALL') || (item.status === statusFilter);
+
+                // Recommendation Filter
+                const matchRec = (recFilter === 'ALL') || (item.recommendation === recFilter);
+
+                // Dept Filter
+                const matchDept = (deptFilter === 'ALL') || (item.dept === deptFilter);
+
+                return matchQuery && matchStatus && matchRec && matchDept;
+            });
+
+            updateKPIs();
+            renderCurrentView();
+        }
+
+        function switchView(viewName) {
+            currentView = viewName;
+
+            // UI Tab Toggle
+            ['Table', 'Kanban', 'Analytics'].forEach(v => {
+                const btn = document.getElementById(`viewBtn${v}`);
+                const sec = document.getElementById(`${v.toLowerCase()}View`);
+                
+                if (v.toLowerCase() === viewName) {
+                    btn.className = "px-3 py-1.5 text-xs rounded-md font-medium text-white bg-blue-600 transition flex items-center gap-1.5 shadow";
+                    sec.classList.remove('hidden');
+                } else {
+                    btn.className = "px-3 py-1.5 text-xs rounded-md font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5";
+                    sec.classList.add('hidden');
+                }
+            });
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            if (currentView === 'table') {
+                renderTable();
+            } else if (currentView === 'kanban') {
+                renderKanban();
+            } else if (currentView === 'analytics') {
+                renderAnalytics();
+            }
+        }
+
+        function updateKPIs() {
+            const total = platformData.length;
+            const online = platformData.filter(i => i.status === '已上線').length;
+            const dev = platformData.filter(i => i.status === '開發中').length;
+            
+            // Blocked: Contains keywords indicating issues and not "無卡關" or "無"
+            const blocked = platformData.filter(i => 
+                i.blocker && 
+                !i.blocker.includes('無卡關') && 
+                !i.blocker.startsWith('無')
+            ).length;
+
+            const shared = platformData.filter(i => 
+                i.recommendation === '系統整併' || i.recommendation === '跨單位共用'
+            ).length;
+
+            document.getElementById('kpi-total').textContent = total;
+            document.getElementById('kpi-online').textContent = online;
+            document.getElementById('kpi-dev').textContent = dev;
+            document.getElementById('kpi-blocked').textContent = blocked;
+            document.getElementById('kpi-shared').textContent = shared;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('tableEmptyState');
+            tbody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/40 group";
+
+                const isBlocked = item.blocker && !item.blocker.includes('無卡關') && !item.blocker.startsWith('無');
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-medium">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-100 font-bold group-hover:text-blue-400 transition">${escapeHtml(item.name)}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 font-mono mt-0.5">${item.id}</div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="font-semibold text-slate-200">${escapeHtml(item.dept)}</div>
+                        <div class="text-slate-400 text-[11px]"><i class="fa-regular fa-user text-slate-500 mr-1"></i>${escapeHtml(item.owner)}</div>
+                    </td>
+                    <td class="py-3.5 px-4 max-w-xs">
+                        <div class="text-slate-300 line-clamp-2" title="${escapeHtml(item.function)}">${escapeHtml(item.function)}</div>
+                        <div class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-database text-slate-600 mr-1"></i>${escapeHtml(item.dataSources || '--')}</div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="flex items-center gap-2 mb-1">
+                            ${getStatusBadge(item.status)}
+                            <span class="font-bold text-xs text-slate-200">${item.progress || 0}%</span>
+                        </div>
+                        <div class="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: ${item.progress || 0}%"></div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-1 font-mono"><i class="fa-regular fa-calendar mr-1"></i>${item.targetDate || '--'}</div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        ${getRecBadge(item.recommendation)}
+                        <div class="text-[11px] text-slate-400 mt-1 line-clamp-1" title="${escapeHtml(item.overlapEval)}">${escapeHtml(item.overlapEval || '--')}</div>
+                    </td>
+                    <td class="py-3.5 px-4 max-w-xs">
+                        ${isBlocked ? `
+                            <div class="bg-rose-950/40 border border-rose-800/40 text-rose-300 text-[11px] px-2 py-1 rounded">
+                                <i class="fa-solid fa-circle-exclamation text-rose-400 mr-1"></i>${escapeHtml(item.blocker)}
+                            </div>
+                        ` : `
+                            <span class="text-slate-500 text-[11px]">無卡關</span>
+                        `}
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="text-slate-300 line-clamp-1" title="${escapeHtml(item.nextGoal)}">${escapeHtml(item.nextGoal || '--')}</div>
+                        <div class="text-[11px] text-indigo-400 mt-0.5"><i class="fa-solid fa-user-check mr-1"></i>${escapeHtml(item.nextOwner || '--')}</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="viewDetails('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition" title="查看詳細資訊">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button onclick="editItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded transition" title="編輯">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded transition" title="刪除">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderKanban() {
+            const containers = {
+                '已上線': document.getElementById('kanbanContainerOnline'),
+                '開發中': document.getElementById('kanbanContainerDev'),
+            };
+
+            const counts = { '已上線': 0, '開發中': 0 };
+
+            Object.values(containers).forEach(c => c.innerHTML = '');
+
+            filteredData.forEach(item => {
+                const targetContainer = containers[item.status] || containers['開發中'];
+                counts[item.status] = (counts[item.status] || 0) + 1;
+
+                const isBlocked = item.blocker && !item.blocker.includes('無卡關') && !item.blocker.startsWith('無');
+
+                const card = document.createElement('div');
+                card.className = "glass-card p-4 rounded-xl space-y-3 cursor-pointer border border-slate-800 hover:border-slate-700";
+                card.onclick = () => viewDetails(item.id);
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <h4 class="font-bold text-sm text-slate-100 hover:text-blue-400 transition leading-snug">${escapeHtml(item.name)}</h4>
+                        ${getRecBadge(item.recommendation)}
+                    </div>
+
+                    <div class="text-xs text-slate-400 line-clamp-2">${escapeHtml(item.function)}</div>
+
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+                        <span><i class="fa-regular fa-building text-slate-500 mr-1"></i>${escapeHtml(item.dept)}</span>
+                        <span><i class="fa-regular fa-user text-slate-500 mr-1"></i>${escapeHtml(item.owner)}</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] font-medium">
+                            <span class="text-slate-400">開發進度</span>
+                            <span class="text-blue-400 font-bold">${item.progress || 0}%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: ${item.progress || 0}%"></div>
+                        </div>
+                    </div>
+
+                    ${isBlocked ? `
+                        <div class="bg-rose-950/40 border border-rose-800/50 p-2 rounded-lg text-[11px] text-rose-300">
+                            <div class="font-semibold text-rose-400 mb-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>卡關關卡:</div>
+                            <div class="line-clamp-1">${escapeHtml(item.blocker)}</div>
+                        </div>
+                    ` : ''}
+
+                    <div class="text-[11px] text-indigo-300 bg-indigo-950/30 p-2 rounded-lg border border-indigo-900/30 flex items-center justify-between">
+                        <span class="truncate mr-2"><i class="fa-solid fa-flag-checkered text-indigo-400 mr-1"></i>${escapeHtml(item.nextGoal || '無')}</span>
+                        <span class="font-semibold whitespace-nowrap">${escapeHtml(item.nextOwner || '')}</span>
+                    </div>
+                `;
+
+                targetContainer.appendChild(card);
+            });
+
+            document.getElementById('count-kanban-online').textContent = counts['已上線'] || 0;
+            document.getElementById('count-kanban-dev').textContent = counts['開發中'] || 0;
+        }
+
+        function renderAnalytics() {
+            // Recommendation Breakdown
+            const recCounts = {};
+            const total = filteredData.length || 1;
+
+            filteredData.forEach(i => {
+                recCounts[i.recommendation] = (recCounts[i.recommendation] || 0) + 1;
+            });
+
+            const recChart = document.getElementById('analyticsRecChart');
+            recChart.innerHTML = '';
+            
+            const recTypes = ['繼續開發', '跨單位共用', '系統整併', '暫緩開發'];
+            recTypes.forEach(rec => {
+                const count = recCounts[rec] || 0;
+                const pct = Math.round((count / total) * 100);
+                
+                const div = document.createElement('div');
+                div.className = "space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>${rec}</span>
+                        <span class="font-bold text-slate-100">${count} 項 (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                recChart.appendChild(div);
+            });
+
+            // Department Breakdown
+            const deptCounts = {};
+            filteredData.forEach(i => {
+                deptCounts[i.dept] = (deptCounts[i.dept] || 0) + 1;
+            });
+
+            const deptChart = document.getElementById('analyticsDeptChart');
+            deptChart.innerHTML = '';
+
+            Object.entries(deptCounts).forEach(([dept, count]) => {
+                const pct = Math.round((count / total) * 100);
+                const div = document.createElement('div');
+                div.className = "space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>${dept}</span>
+                        <span class="font-bold text-slate-100">${count} 項 (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                deptChart.appendChild(div);
+            });
+
+            // Blocker Overview List
+            const blockerList = document.getElementById('analyticsBlockerList');
+            blockerList.innerHTML = '';
+
+            const blockedItems = filteredData.filter(i => 
+                i.blocker && !i.blocker.includes('無卡關') && !i.blocker.startsWith('無')
+            );
+
+            if (blockedItems.length === 0) {
+                blockerList.innerHTML = '<div class="col-span-2 text-slate-500 text-xs py-4 text-center">讚！目前無任何卡關或需要跨部門支援項目。</div>';
+                return;
+            }
+
+            blockedItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-950/60 border border-rose-900/40 p-3 rounded-lg text-xs space-y-1.5";
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-200">${escapeHtml(item.name)}</span>
+                        <span class="text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded font-medium">${escapeHtml(item.dept)}</span>
+                    </div>
+                    <div class="text-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1 text-rose-400"></i>${escapeHtml(item.blocker)}</div>
+                    <div class="text-amber-300/90 text-[11px]"><i class="fa-solid fa-hand-holding-hand mr-1"></i>需要支援: ${escapeHtml(item.assistance || '未指定')}</div>
+                `;
+                blockerList.appendChild(div);
+            });
+        }
+
+        function getStatusBadge(status) {
+            switch(status) {
+                case '已上線':
+                    return `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"><i class="fa-solid fa-circle text-[6px]"></i> 已上線</span>`;
+                case '開發中':
+                default:
+                    return `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"><i class="fa-solid fa-circle text-[6px] animate-ping"></i> 開發中</span>`;
+            }
+        }
+
+        function getRecBadge(rec) {
+            switch(rec) {
+                case '繼續開發':
+                    return `<span class="bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 text-[10px] font-semibold px-2 py-0.5 rounded">繼續開發</span>`;
+                case '跨單位共用':
+                    return `<span class="bg-teal-950/60 text-teal-300 border border-teal-800/60 text-[10px] font-semibold px-2 py-0.5 rounded">跨單位共用</span>`;
+                case '系統整併':
+                    return `<span class="bg-purple-950/60 text-purple-300 border border-purple-800/60 text-[10px] font-semibold px-2 py-0.5 rounded">系統整併</span>`;
+                case '暫緩開發':
+                    return `<span class="bg-amber-950/60 text-amber-400 border border-amber-800/60 text-[10px] font-semibold px-2 py-0.5 rounded">暫緩開發</span>`;
+                default:
+                    return `<span class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded">${escapeHtml(rec || '未評估')}</span>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function viewDetails(id) {
+            const item = platformData.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('modalTitle').textContent = item.name;
+            document.getElementById('modalDept').textContent = item.dept || '--';
+            document.getElementById('modalOwner').textContent = item.owner || '--';
+            document.getElementById('modalQaPartner').textContent = item.qaPartner || '--';
+            document.getElementById('modalFunction').textContent = item.function || '--';
+            document.getElementById('modalDataSources').textContent = item.dataSources || '--';
+            document.getElementById('modalTargetDate').textContent = item.targetDate || '--';
+            document.getElementById('modalProgressText').textContent = `${item.progress || 0}%`;
+            document.getElementById('modalProgressBar').style.width = `${item.progress || 0}%`;
+            document.getElementById('modalOverlapEval').textContent = item.overlapEval || '--';
+            
+            document.getElementById('modalBlocker').textContent = item.blocker || '無卡關';
+            document.getElementById('modalAssistance').textContent = item.assistance || '無需協助';
+
+            document.getElementById('modalNextGoal').textContent = item.nextGoal || '--';
+            document.getElementById('modalNextOwner').textContent = item.nextOwner || '--';
+
+            // Badges
+            document.getElementById('modalStatusBadge').innerHTML = getStatusBadge(item.status);
+            document.getElementById('modalRecBadge').innerHTML = getRecBadge(item.recommendation);
+
+            openModal('detailModal');
+        }
+
+        function editItem(id) {
+            const item = platformData.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('editModalTitle').textContent = '編輯品質平台項目';
+            document.getElementById('formId').value = item.id;
+            document.getElementById('formName').value = item.name || '';
+            document.getElementById('formStatus').value = item.status || '開發中';
+            document.getElementById('formDept').value = item.dept || '';
+            document.getElementById('formOwner').value = item.owner || '';
+            document.getElementById('formQaPartner').value = item.qaPartner || '';
+            document.getElementById('formFunction').value = item.function || '';
+            document.getElementById('formDataSources').value = item.dataSources || '';
+            document.getElementById('formProgress').value = item.progress || 0;
+            document.getElementById('formTargetDate').value = item.targetDate || '';
+            document.getElementById('formRecommendation').value = item.recommendation || '繼續開發';
+            document.getElementById('formOverlapEval').value = item.overlapEval || '';
+            document.getElementById('formBlocker').value = item.blocker || '';
+            document.getElementById('formAssistance').value = item.assistance || '';
+            document.getElementById('formNextGoal').value = item.nextGoal || '';
+            document.getElementById('formNextOwner').value = item.nextOwner || '';
+
+            openModal('editModal');
+        }
+
+        function saveItem(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('formId').value;
+            const isEdit = Boolean(id);
+
+            const newItem = {
+                id: isEdit ? id : `HK-${String(platformData.length + 1).padStart(3, '0')}`,
+                name: document.getElementById('formName').value,
+                status: document.getElementById('formStatus').value,
+                dept: document.getElementById('formDept').value,
+                owner: document.getElementById('formOwner').value,
+                qaPartner: document.getElementById('formQaPartner').value,
+                function: document.getElementById('formFunction').value,
+                dataSources: document.getElementById('formDataSources').value,
+                progress: Number(document.getElementById('formProgress').value) || 0,
+                targetDate: document.getElementById('formTargetDate').value,
+                recommendation: document.getElementById('formRecommendation').value,
+                overlapEval: document.getElementById('formOverlapEval').value,
+                blocker: document.getElementById('formBlocker').value || '無卡關',
+                assistance: document.getElementById('formAssistance').value || '無需協助',
+                nextGoal: document.getElementById('formNextGoal').value,
+                nextOwner: document.getElementById('formNextOwner').value
+            };
+
+            if (isEdit) {
+                const idx = platformData.findIndex(i => i.id === id);
+                if (idx !== -1) platformData[idx] = newItem;
+            } else {
+                platformData.unshift(newItem);
+            }
+
+            saveAllData();
+            applyFilters();
+            closeModal('editModal');
+            document.getElementById('itemForm').reset();
+        }
+
+        function deleteItem(id) {
+            if (confirm('確定要刪除此品質平台紀錄嗎？')) {
+                platformData = platformData.filter(i => i.id !== id);
+                saveAllData();
+                applyFilters();
+            }
+        }
+
+        function exportCSV() {
+            if (platformData.length === 0) {
+                alert('目前無資料可供匯出');
+                return;
+            }
+
+            const headers = [
+                '編號', '平台/看板名稱(附上廠區代碼HK or VN)', '使用單位', '負責窗口', '品質配合窗口',
+                '主要功能與目的', '資料來源', '開發狀態', '進度(%)', '預計完成日期',
+                '重疊評估', '處置建議', '卡關瓶頸', '所需協助', '下次Review目標', '責任負責人'
+            ];
+
+            const rows = platformData.map(item => [
+                item.id,
+                `"${(item.name || '').replace(/"/g, '""')}"`,
+                `"${(item.dept || '').replace(/"/g, '""')}"`,
+                `"${(item.owner || '').replace(/"/g, '""')}"`,
+                `"${(item.qaPartner || '').replace(/"/g, '""')}"`,
+                `"${(item.function || '').replace(/"/g, '""')}"`,
+                `"${(item.dataSources || '').replace(/"/g, '""')}"`,
+                item.status,
+                item.progress,
+                item.targetDate,
+                `"${(item.overlapEval || '').replace(/"/g, '""')}"`,
+                item.recommendation,
+                `"${(item.blocker || '').replace(/"/g, '""')}"`,
+                `"${(item.assistance || '').replace(/"/g, '""')}"`,
+                `"${(item.nextGoal || '').replace(/"/g, '""')}"`,
+                `"${(item.nextOwner || '').replace(/"/g, '""')}"`
+            ]);
+
+            // Add UTF-8 BOM so Excel opens Traditional Chinese characters cleanly
+            const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `HK_Quality_Platform_Inventory_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
