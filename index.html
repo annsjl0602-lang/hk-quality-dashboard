@@ -89,19 +89,49 @@
 
                 <!-- Top Right Quick Actions -->
                 <div class="flex items-center space-x-2">
-                    <button id="cloudSyncBtn" onclick="openGsheetModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-2 rounded-lg transition flex items-center gap-1.5" title="點擊設定 Google Sheet 雲端同步">
-                        <span id="cloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                        <span id="cloudSyncText" class="hidden sm:inline text-xs">本地模式</span>
-                    </button>
+                    <!-- 1. 新增平台項目 (最左邊) -->
                     <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增平台項目
                     </button>
-                    <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-csv text-emerald-400"></i> 匯出 CSV
-                    </button>
+                    <!-- 2. 資料更新按鈕 -->
                     <button onclick="refreshData(event)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5" title="資料更新與重新整理">
                         <i class="fa-solid fa-rotate text-sky-400"></i> 資料更新
                     </button>
+                    <!-- 3. 管理員按鈕 (點選需密碼 22960571) -->
+                    <div class="relative">
+                        <button id="adminBtn" onclick="handleAdminClick()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5" title="管理員功能 (需密碼)">
+                            <i id="adminLockIcon" class="fa-solid fa-user-shield text-amber-400"></i>
+                            <span>管理員</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-0.5"></i>
+                        </button>
+                        <!-- 管理員下拉選單 -->
+                        <div id="adminDropdown" class="hidden absolute right-0 mt-2 w-64 glass-panel bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl z-40 py-2 text-xs">
+                            <div class="px-3.5 py-2 border-b border-slate-800/80 flex items-center justify-between text-slate-400">
+                                <span class="font-semibold text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-shield-halved text-emerald-400"></i> 管理員選單
+                                </span>
+                                <button onclick="lockAdmin()" class="text-[11px] text-slate-400 hover:text-rose-400 transition flex items-center gap-1" title="重新鎖定管理員權限">
+                                    <i class="fa-solid fa-lock"></i> 鎖定
+                                </button>
+                            </div>
+                            <div class="py-1">
+                                <button id="cloudSyncBtn" onclick="openGsheetModalFromAdmin()" class="w-full text-left px-3.5 py-2.5 hover:bg-slate-800/80 text-slate-200 flex items-center justify-between transition group">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-table text-emerald-400 group-hover:scale-110 transition-transform"></i>
+                                        <span>Google Sheet 雲端連線</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                        <span id="cloudSyncDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                        <span id="cloudSyncText">本地模式</span>
+                                    </div>
+                                </button>
+                                <button onclick="exportCSVFromAdmin()" class="w-full text-left px-3.5 py-2.5 hover:bg-slate-800/80 text-slate-200 flex items-center gap-2 transition group">
+                                    <i class="fa-solid fa-file-csv text-emerald-400 group-hover:scale-110 transition-transform"></i>
+                                    <span>匯出 CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -594,8 +624,47 @@
         </div>
     </div>
 
+    <!-- MODAL 4: Admin Password Auth Modal -->
+    <div id="adminAuthModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-amber-400"></i> 管理員身分驗證
+                </h3>
+                <button onclick="closeModal('adminAuthModal')" class="text-slate-400 hover:text-white transition text-base px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="verifyAdminPassword(event)" class="p-5 space-y-4 text-xs">
+                <p class="text-slate-300">此功能僅限管理員存取，請輸入管理員密碼：</p>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">管理員密碼</label>
+                    <div class="relative">
+                        <input type="password" id="adminPasswordInput" required placeholder="請輸入 8 位數密碼" 
+                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-500 font-mono tracking-wider">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+                            <i id="eyeIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                    <div id="adminAuthError" class="text-rose-400 text-[11px] mt-1 hidden flex items-center gap-1">
+                        <i class="fa-solid fa-circle-exclamation"></i> 密碼錯誤，請重新輸入！
+                    </div>
+                </div>
+                <div class="pt-2 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeModal('adminAuthModal')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition text-xs font-medium">
+                        取消
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-key"></i> 驗證解鎖
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const STORAGE_KEY = 'hk_quality_platforms_data_v2';
+        let isAdminUnlocked = false;
 
         // Initial realistic mock data for HK Plant
         const INITIAL_PLATFORMS = [
@@ -1632,6 +1701,121 @@
             link.click();
             document.body.removeChild(link);
         }
+
+        // --- Admin Authentication & Menu Logic ---
+        function handleAdminClick() {
+            if (isAdminUnlocked) {
+                toggleAdminDropdown();
+            } else {
+                openAdminAuthModal();
+            }
+        }
+
+        function openAdminAuthModal() {
+            const input = document.getElementById('adminPasswordInput');
+            const errEl = document.getElementById('adminAuthError');
+            if (input) {
+                input.value = '';
+                input.classList.remove('border-rose-500');
+            }
+            if (errEl) errEl.classList.add('hidden');
+            openModal('adminAuthModal');
+            setTimeout(() => {
+                if (input) input.focus();
+            }, 100);
+        }
+
+        function verifyAdminPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('adminPasswordInput');
+            const pwd = input ? input.value : '';
+            if (pwd === '22960571') {
+                isAdminUnlocked = true;
+                sessionStorage.setItem('hk_quality_admin_unlocked', 'true');
+                closeModal('adminAuthModal');
+                updateAdminUI(true);
+                toggleAdminDropdown(true);
+                showToast('🔓 管理員身份驗證成功！');
+            } else {
+                const errEl = document.getElementById('adminAuthError');
+                if (errEl) errEl.classList.remove('hidden');
+                if (input) {
+                    input.classList.add('border-rose-500');
+                    input.focus();
+                }
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('adminPasswordInput');
+            const icon = document.getElementById('eyeIcon');
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function updateAdminUI(unlocked) {
+            const lockIcon = document.getElementById('adminLockIcon');
+            const adminBtn = document.getElementById('adminBtn');
+            if (unlocked) {
+                if (lockIcon) lockIcon.className = 'fa-solid fa-user-check text-emerald-400';
+                if (adminBtn) adminBtn.title = '管理員專區 (已解鎖)';
+            } else {
+                if (lockIcon) lockIcon.className = 'fa-solid fa-user-shield text-amber-400';
+                if (adminBtn) adminBtn.title = '管理員功能 (需密碼)';
+            }
+        }
+
+        function lockAdmin() {
+            isAdminUnlocked = false;
+            sessionStorage.removeItem('hk_quality_admin_unlocked');
+            updateAdminUI(false);
+            toggleAdminDropdown(false);
+            showToast('🔒 已鎖定管理員功能');
+        }
+
+        function toggleAdminDropdown(forceState) {
+            const dropdown = document.getElementById('adminDropdown');
+            if (!dropdown) return;
+            if (typeof forceState === 'boolean') {
+                if (forceState) dropdown.classList.remove('hidden');
+                else dropdown.classList.add('hidden');
+            } else {
+                dropdown.classList.toggle('hidden');
+            }
+        }
+
+        function openGsheetModalFromAdmin() {
+            toggleAdminDropdown(false);
+            openGsheetModal();
+        }
+
+        function exportCSVFromAdmin() {
+            toggleAdminDropdown(false);
+            exportCSV();
+        }
+
+        // Initialize admin state from sessionStorage & set up click outside listener
+        window.addEventListener('DOMContentLoaded', () => {
+            if (sessionStorage.getItem('hk_quality_admin_unlocked') === 'true') {
+                isAdminUnlocked = true;
+                updateAdminUI(true);
+            }
+            window.addEventListener('click', (e) => {
+                const dropdown = document.getElementById('adminDropdown');
+                const adminBtn = document.getElementById('adminBtn');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    if (!dropdown.contains(e.target) && adminBtn && !adminBtn.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>
