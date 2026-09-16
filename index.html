@@ -789,8 +789,13 @@
             if (!Array.isArray(fetchedItems)) return [];
             return fetchedItems.map(item => {
                 const existing = platformData.find(p => (p.name && p.name === item.name) || (p.id && p.id === item.id));
-                let plantVal = item.plant;
-                if (!plantVal || (plantVal !== 'HK' && plantVal !== 'VN')) {
+                let plantStr = String(item.plant || '').trim().toUpperCase();
+                let plantVal = '';
+                if (plantStr.includes('VN')) {
+                    plantVal = 'VN';
+                } else if (plantStr.includes('HK')) {
+                    plantVal = 'HK';
+                } else {
                     if (existing && (existing.plant === 'HK' || existing.plant === 'VN')) {
                         plantVal = existing.plant;
                     } else if (item.id && String(item.id).toUpperCase().startsWith('VN')) {
