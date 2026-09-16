@@ -93,7 +93,7 @@
                         <span id="cloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
                         <span id="cloudSyncText" class="hidden sm:inline text-xs">本地模式</span>
                     </button>
-                    <button onclick="openModal('editModal')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增平台項目
                     </button>
                     <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5">
@@ -166,6 +166,13 @@
                         <option value="暫緩開發">暫緩開發</option>
                     </select>
 
+                    <!-- Factory Code Filter -->
+                    <select id="filterPlant" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部廠區 (HK/VN)</option>
+                        <option value="HK">HK 廠區</option>
+                        <option value="VN">VN 廠區</option>
+                    </select>
+
                     <!-- Department Filter -->
                     <select id="filterDept" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
                         <option value="ALL">全部使用單位</option>
@@ -199,7 +206,7 @@
                 <table class="w-full text-left text-xs text-slate-300 border-collapse">
                     <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
                         <tr>
-                            <th class="py-3.5 px-4">平台／看板名稱(附上廠區代碼HK or VN)</th>
+                            <th class="py-3.5 px-4">廠區 & 平台／看板名稱</th>
                             <th class="py-3.5 px-4">使用單位 & 負責窗口</th>
                             <th class="py-3.5 px-4">核心功能 & 資料來源</th>
                             <th class="py-3.5 px-4">進度 / 預計完成</th>
@@ -418,11 +425,18 @@
             <form id="itemForm" onsubmit="saveItem(event)" class="p-6 overflow-y-auto space-y-4 text-xs">
                 <input type="hidden" id="formId">
 
-                <!-- Row 1: Name & Status -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <!-- Row 1: Name, Plant Code & Status -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div class="md:col-span-2">
-                        <label class="block text-slate-400 mb-1 font-medium">平台／看板名稱(附上廠區代碼HK or VN) <span class="text-rose-500">*</span></label>
-                        <input type="text" id="formName" required placeholder="例：HK-IQC 進料檢驗即時看板" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                        <label class="block text-slate-400 mb-1 font-medium">平台／看板名稱 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formName" required placeholder="例：IQC 進料檢驗即時看板" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">廠區代碼 <span class="text-rose-500">*</span></label>
+                        <select id="formPlant" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 font-medium">
+                            <option value="HK">HK 廠區</option>
+                            <option value="VN">VN 廠區</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1 font-medium">開發進度狀態 <span class="text-rose-500">*</span></label>
@@ -575,6 +589,7 @@
             {
                 id: 'HK-001',
                 name: 'HK-IQC 進料檢驗即時監控看板',
+                plant: 'HK',
                 dept: '品保處',
                 owner: '張偉倫 (IQC工程師)',
                 qaPartner: '李淑芬 (IQC課長)',
@@ -770,6 +785,26 @@
             });
         }
 
+        function sanitizeItems(fetchedItems) {
+            if (!Array.isArray(fetchedItems)) return [];
+            return fetchedItems.map(item => {
+                const existing = platformData.find(p => (p.name && p.name === item.name) || (p.id && p.id === item.id));
+                let plantVal = item.plant;
+                if (!plantVal || (plantVal !== 'HK' && plantVal !== 'VN')) {
+                    if (existing && (existing.plant === 'HK' || existing.plant === 'VN')) {
+                        plantVal = existing.plant;
+                    } else if (item.id && String(item.id).toUpperCase().startsWith('VN')) {
+                        plantVal = 'VN';
+                    } else if (item.name && String(item.name).toUpperCase().includes('VN')) {
+                        plantVal = 'VN';
+                    } else {
+                        plantVal = 'HK';
+                    }
+                }
+                return { ...item, plant: plantVal };
+            });
+        }
+
         async function loadData(silent = false) {
             if (!silent) updateSyncBadge('loading', '同步連線中...');
 
@@ -795,7 +830,7 @@
                     if (!text.trim().startsWith('<')) {
                         const data = JSON.parse(text);
                         if (Array.isArray(data)) {
-                            platformData = data;
+                            platformData = sanitizeItems(data);
                             localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
                             updateSyncBadge('online', 'Google Sheet 雲端連線');
                             applyFilters();
@@ -810,7 +845,7 @@
                 try {
                     const data = await fetchJsonp(gUrl);
                     if (Array.isArray(data)) {
-                        platformData = data;
+                        platformData = sanitizeItems(data);
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
                         updateSyncBadge('online', 'Google Sheet 雲端連線');
                         applyFilters();
@@ -832,7 +867,7 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
-                        platformData = data;
+                        platformData = sanitizeItems(data);
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
                         updateSyncBadge('online', '外網/伺服器連線');
                         applyFilters();
@@ -847,16 +882,16 @@
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 try {
-                    platformData = JSON.parse(stored);
+                    platformData = sanitizeItems(JSON.parse(stored));
                     platformData.forEach(item => {
                         if (item.status === '規劃中') item.status = '開發中';
                     });
                 } catch(e) {
                     console.error('Failed to parse localStorage data:', e);
-                    platformData = [...INITIAL_PLATFORMS];
+                    platformData = sanitizeItems(INITIAL_PLATFORMS);
                 }
             } else {
-                platformData = [...INITIAL_PLATFORMS];
+                platformData = sanitizeItems(INITIAL_PLATFORMS);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(platformData));
             }
             updateSyncBadge('offline', '本機離線模式');
@@ -880,7 +915,6 @@
                     });
                     updateSyncBadge('online', 'Google Sheet 雲端連線');
                     showToast('已成功同步資料至 Google 試算表！');
-                    return;
                 } catch(e) {
                     console.error('Failed to sync to Google Sheet:', e);
                 }
@@ -986,6 +1020,17 @@
                 alert('⚠️ 偵測到您貼入的是「測試部署網址 (/dev)」！\n\n測試部署網址不允許外部 API 調用。系統已自動嘗試將其轉換為正式網址 (/exec)。\n\n請確保您在 Apps Script 點擊的是『新增部署』而非『測試部署』！');
             }
 
+            if (!url.endsWith('/exec') && !url.includes('/exec?')) {
+                if (url.endsWith('/')) {
+                    url += 'exec';
+                } else {
+                    if (url.length < 75) {
+                        alert('⚠️ 貼入的網址長度過短 (可能複製時被截斷了)！\n\n完整的 Google Apps Script 網址長度約 100 個字元，且結尾必須是 /exec。\n\n請至 Apps Script 畫面點擊「複製 (Copy)」圖示按鈕以複製完整網址！');
+                        return;
+                    }
+                }
+            }
+
             localStorage.setItem('hk_quality_gsheet_url', url);
             closeModal('gsheetModal');
             showToast('正在測試並讀取 Google 試算表...');
@@ -1003,17 +1048,24 @@
 
         function applyFilters() {
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const plantFilter = document.getElementById('filterPlant').value;
             const statusFilter = document.getElementById('filterStatus').value;
             const recFilter = document.getElementById('filterRec').value;
             const deptFilter = document.getElementById('filterDept').value;
 
             filteredData = platformData.filter(item => {
+                const plantVal = item.plant || 'HK';
+
                 // Keyword Search
                 const matchQuery = !query || 
                     item.name.toLowerCase().includes(query) ||
+                    plantVal.toLowerCase().includes(query) ||
                     item.function.toLowerCase().includes(query) ||
                     item.owner.toLowerCase().includes(query) ||
                     item.dept.toLowerCase().includes(query);
+
+                // Plant Filter
+                const matchPlant = (plantFilter === 'ALL') || (plantVal === plantFilter);
 
                 // Status Filter
                 const matchStatus = (statusFilter === 'ALL') || (item.status === statusFilter);
@@ -1024,7 +1076,7 @@
                 // Dept Filter
                 const matchDept = (deptFilter === 'ALL') || (item.dept === deptFilter);
 
-                return matchQuery && matchStatus && matchRec && matchDept;
+                return matchQuery && matchPlant && matchStatus && matchRec && matchDept;
             });
 
             updateKPIs();
@@ -1101,12 +1153,17 @@
 
                 const isBlocked = item.blocker && !item.blocker.includes('無卡關') && !item.blocker.startsWith('無');
 
+                const plantVal = item.plant || 'HK';
+                const plantBadge = plantVal === 'VN' 
+                    ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">VN</span>` 
+                    : `<span class="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">HK</span>`;
+
                 tr.innerHTML = `
                     <td class="py-3.5 px-4 font-medium">
                         <div class="flex items-center gap-2">
+                            ${plantBadge}
                             <span class="text-slate-100 font-bold group-hover:text-blue-400 transition">${escapeHtml(item.name)}</span>
                         </div>
-                        <div class="text-[11px] text-slate-500 font-mono mt-0.5">${item.id}</div>
                     </td>
                     <td class="py-3.5 px-4">
                         <div class="font-semibold text-slate-200">${escapeHtml(item.dept)}</div>
@@ -1181,9 +1238,17 @@
                 card.className = "glass-card p-4 rounded-xl space-y-3 cursor-pointer border border-slate-800 hover:border-slate-700";
                 card.onclick = () => viewDetails(item.id);
 
+                const plantVal = item.plant || 'HK';
+                const plantBadge = plantVal === 'VN' 
+                    ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded shrink-0">VN</span>` 
+                    : `<span class="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded shrink-0">HK</span>`;
+
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
-                        <h4 class="font-bold text-sm text-slate-100 hover:text-blue-400 transition leading-snug">${escapeHtml(item.name)}</h4>
+                        <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                            ${plantBadge}
+                            <h4 class="font-bold text-sm text-slate-100 hover:text-blue-400 transition leading-snug truncate">${escapeHtml(item.name)}</h4>
+                        </div>
                         ${getRecBadge(item.recommendation)}
                     </div>
 
@@ -1355,7 +1420,12 @@
             const item = platformData.find(i => i.id === id);
             if (!item) return;
 
-            document.getElementById('modalTitle').textContent = item.name;
+            const plantVal = item.plant || 'HK';
+            const plantBadge = plantVal === 'VN'
+                ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold font-mono px-2 py-0.5 rounded mr-1.5">VN</span>`
+                : `<span class="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs font-bold font-mono px-2 py-0.5 rounded mr-1.5">HK</span>`;
+
+            document.getElementById('modalTitle').innerHTML = `${plantBadge}<span>${escapeHtml(item.name)}</span>`;
             document.getElementById('modalDept').textContent = item.dept || '--';
             document.getElementById('modalOwner').textContent = item.owner || '--';
             document.getElementById('modalQaPartner').textContent = item.qaPartner || '--';
@@ -1379,6 +1449,16 @@
             openModal('detailModal');
         }
 
+        function openAddModal() {
+            document.getElementById('editModalTitle').textContent = '新增品質平台項目';
+            document.getElementById('formId').value = '';
+            document.getElementById('itemForm').reset();
+            document.getElementById('formPlant').value = 'HK';
+            document.getElementById('formStatus').value = '已上線';
+            document.getElementById('formRecommendation').value = '繼續開發';
+            openModal('editModal');
+        }
+
         function editItem(id) {
             const item = platformData.find(i => i.id === id);
             if (!item) return;
@@ -1386,6 +1466,7 @@
             document.getElementById('editModalTitle').textContent = '編輯品質平台項目';
             document.getElementById('formId').value = item.id;
             document.getElementById('formName').value = item.name || '';
+            document.getElementById('formPlant').value = item.plant || 'HK';
             document.getElementById('formStatus').value = item.status || '開發中';
             document.getElementById('formDept').value = item.dept || '';
             document.getElementById('formOwner').value = item.owner || '';
@@ -1410,9 +1491,12 @@
             const id = document.getElementById('formId').value;
             const isEdit = Boolean(id);
 
+            const plant = document.getElementById('formPlant').value || 'HK';
+
             const newItem = {
-                id: isEdit ? id : `HK-${String(platformData.length + 1).padStart(3, '0')}`,
+                id: isEdit ? id : 'item_' + Date.now(),
                 name: document.getElementById('formName').value,
+                plant: plant,
                 status: document.getElementById('formStatus').value,
                 dept: document.getElementById('formDept').value,
                 owner: document.getElementById('formOwner').value,
@@ -1451,35 +1535,44 @@
         }
 
         function exportCSV() {
-            if (platformData.length === 0) {
+            const dataToExport = (filteredData && filteredData.length > 0) ? filteredData : platformData;
+            if (dataToExport.length === 0) {
                 alert('目前無資料可供匯出');
                 return;
             }
 
             const headers = [
-                '編號', '平台/看板名稱(附上廠區代碼HK or VN)', '使用單位', '負責窗口', '品質配合窗口',
+                '廠區代碼', '平台/看板名稱', '使用單位', '負責窗口', '品質配合窗口',
                 '主要功能與目的', '資料來源', '開發狀態', '進度(%)', '預計完成日期',
                 '重疊評估', '處置建議', '卡關瓶頸', '所需協助', '下次Review目標', '責任負責人'
             ];
 
-            const rows = platformData.map(item => [
-                item.id,
-                `"${(item.name || '').replace(/"/g, '""')}"`,
-                `"${(item.dept || '').replace(/"/g, '""')}"`,
-                `"${(item.owner || '').replace(/"/g, '""')}"`,
-                `"${(item.qaPartner || '').replace(/"/g, '""')}"`,
-                `"${(item.function || '').replace(/"/g, '""')}"`,
-                `"${(item.dataSources || '').replace(/"/g, '""')}"`,
-                item.status,
-                item.progress,
-                item.targetDate,
-                `"${(item.overlapEval || '').replace(/"/g, '""')}"`,
-                item.recommendation,
-                `"${(item.blocker || '').replace(/"/g, '""')}"`,
-                `"${(item.assistance || '').replace(/"/g, '""')}"`,
-                `"${(item.nextGoal || '').replace(/"/g, '""')}"`,
-                `"${(item.nextOwner || '').replace(/"/g, '""')}"`
-            ]);
+            const rows = dataToExport.map(item => {
+                let plantVal = item.plant;
+                if (!plantVal) {
+                    if (item.id && String(item.id).toUpperCase().startsWith('VN')) plantVal = 'VN';
+                    else if (item.name && String(item.name).toUpperCase().includes('VN')) plantVal = 'VN';
+                    else plantVal = 'HK';
+                }
+                return [
+                    `"${String(plantVal).replace(/"/g, '""')}"`,
+                    `"${(item.name || '').replace(/"/g, '""')}"`,
+                    `"${(item.dept || '').replace(/"/g, '""')}"`,
+                    `"${(item.owner || '').replace(/"/g, '""')}"`,
+                    `"${(item.qaPartner || '').replace(/"/g, '""')}"`,
+                    `"${(item.function || '').replace(/"/g, '""')}"`,
+                    `"${(item.dataSources || '').replace(/"/g, '""')}"`,
+                    item.status,
+                    item.progress,
+                    item.targetDate,
+                    `"${(item.overlapEval || '').replace(/"/g, '""')}"`,
+                    item.recommendation,
+                    `"${(item.blocker || '').replace(/"/g, '""')}"`,
+                    `"${(item.assistance || '').replace(/"/g, '""')}"`,
+                    `"${(item.nextGoal || '').replace(/"/g, '""')}"`,
+                    `"${(item.nextOwner || '').replace(/"/g, '""')}"`
+                ];
+            });
 
             // Add UTF-8 BOM so Excel opens Traditional Chinese characters cleanly
             const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
