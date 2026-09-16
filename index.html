@@ -312,7 +312,7 @@
             <!-- Modal Content Body -->
             <div class="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
                 <!-- Section 1: Basic Info Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
                     <div>
                         <div class="text-slate-500 text-[11px]">使用單位</div>
                         <div id="modalDept" class="font-semibold text-slate-200 text-sm mt-0.5">--</div>
@@ -324,6 +324,10 @@
                     <div>
                         <div class="text-slate-500 text-[11px]">品質配合窗口</div>
                         <div id="modalQaPartner" class="font-medium text-slate-200 mt-0.5">--</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-[11px]">發布網址連結</div>
+                        <div id="modalUrl" class="font-medium text-slate-200 mt-0.5 truncate">--</div>
                     </div>
                 </div>
 
@@ -444,6 +448,15 @@
                             <option value="已上線">已上線</option>
                             <option value="開發中">開發中</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Row 1.5: Platform Published URL -->
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">看板／平台發布網址連結 (URL)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-link absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                        <input type="url" id="formUrl" placeholder="例：https://dashboard.company.com/iqc (點選可直接開啓)" class="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
 
@@ -589,6 +602,7 @@
             {
                 id: 'HK-001',
                 name: 'HK-IQC 進料檢驗即時監控看板',
+                url: 'https://dashboard.company.com/iqc',
                 plant: 'HK',
                 dept: '品保處',
                 owner: '張偉倫 (IQC工程師)',
@@ -806,7 +820,7 @@
                         plantVal = 'HK';
                     }
                 }
-                return { ...item, plant: plantVal };
+                return { ...item, plant: plantVal, url: String(item.url || '').trim() };
             });
         }
 
@@ -1067,7 +1081,8 @@
                     plantVal.toLowerCase().includes(query) ||
                     item.function.toLowerCase().includes(query) ||
                     item.owner.toLowerCase().includes(query) ||
-                    item.dept.toLowerCase().includes(query);
+                    item.dept.toLowerCase().includes(query) ||
+                    (item.url && item.url.toLowerCase().includes(query));
 
                 // Plant Filter
                 const matchPlant = (plantFilter === 'ALL') || (plantVal === plantFilter);
@@ -1207,6 +1222,15 @@
                     </td>
                     <td class="py-3.5 px-4 text-center whitespace-nowrap">
                         <div class="flex items-center justify-center gap-1.5">
+                            ${item.url ? `
+                                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded transition" title="開啟平台/看板連結">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            ` : `
+                                <button disabled class="p-1.5 text-slate-600 cursor-not-allowed rounded opacity-40" title="未提供發布網址">
+                                    <i class="fa-solid fa-link-slash"></i>
+                                </button>
+                            `}
                             <button onclick="viewDetails('${item.id}')" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition" title="查看詳細資訊">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
@@ -1253,6 +1277,11 @@
                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
                             ${plantBadge}
                             <h4 class="font-bold text-sm text-slate-100 hover:text-blue-400 transition leading-snug truncate">${escapeHtml(item.name)}</h4>
+                            ${item.url ? `
+                                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-emerald-400 hover:text-emerald-300 p-0.5 shrink-0" title="開啟平台/看板連結">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                                </a>
+                            ` : ''}
                         </div>
                         ${getRecBadge(item.recommendation)}
                     </div>
@@ -1434,6 +1463,14 @@
             document.getElementById('modalDept').textContent = item.dept || '--';
             document.getElementById('modalOwner').textContent = item.owner || '--';
             document.getElementById('modalQaPartner').textContent = item.qaPartner || '--';
+            
+            const modalUrlEl = document.getElementById('modalUrl');
+            if (item.url) {
+                modalUrlEl.innerHTML = `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline inline-flex items-center gap-1 font-mono"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> 點擊開啟連結</a>`;
+            } else {
+                modalUrlEl.innerHTML = `<span class="text-slate-500">未設定網址</span>`;
+            }
+
             document.getElementById('modalFunction').textContent = item.function || '--';
             document.getElementById('modalDataSources').textContent = item.dataSources || '--';
             document.getElementById('modalTargetDate').textContent = item.targetDate || '--';
@@ -1458,6 +1495,7 @@
             document.getElementById('editModalTitle').textContent = '新增品質平台項目';
             document.getElementById('formId').value = '';
             document.getElementById('itemForm').reset();
+            document.getElementById('formUrl').value = '';
             document.getElementById('formPlant').value = 'HK';
             document.getElementById('formStatus').value = '已上線';
             document.getElementById('formRecommendation').value = '繼續開發';
@@ -1471,6 +1509,7 @@
             document.getElementById('editModalTitle').textContent = '編輯品質平台項目';
             document.getElementById('formId').value = item.id;
             document.getElementById('formName').value = item.name || '';
+            document.getElementById('formUrl').value = item.url || '';
             document.getElementById('formPlant').value = item.plant || 'HK';
             document.getElementById('formStatus').value = item.status || '開發中';
             document.getElementById('formDept').value = item.dept || '';
@@ -1501,6 +1540,7 @@
             const newItem = {
                 id: isEdit ? id : 'item_' + Date.now(),
                 name: document.getElementById('formName').value,
+                url: document.getElementById('formUrl').value.trim(),
                 plant: plant,
                 status: document.getElementById('formStatus').value,
                 dept: document.getElementById('formDept').value,
@@ -1547,7 +1587,7 @@
             }
 
             const headers = [
-                '廠區代碼', '平台/看板名稱', '使用單位', '負責窗口', '品質配合窗口',
+                '廠區代碼', '平台/看板名稱', '發布網址連結', '使用單位', '負責窗口', '品質配合窗口',
                 '主要功能與目的', '資料來源', '開發狀態', '進度(%)', '預計完成日期',
                 '重疊評估', '處置建議', '卡關瓶頸', '所需協助', '下次Review目標', '責任負責人'
             ];
@@ -1562,6 +1602,7 @@
                 return [
                     `"${String(plantVal).replace(/"/g, '""')}"`,
                     `"${(item.name || '').replace(/"/g, '""')}"`,
+                    `"${(item.url || '').replace(/"/g, '""')}"`,
                     `"${(item.dept || '').replace(/"/g, '""')}"`,
                     `"${(item.owner || '').replace(/"/g, '""')}"`,
                     `"${(item.qaPartner || '').replace(/"/g, '""')}"`,
